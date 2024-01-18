@@ -1,0 +1,107 @@
+{% extends "./base.html" %}
+{% block title %}Home Page{% endblock %}
+{% block content %}
+
+<div style="max-width:800px;" class="m-auto  border rounded w-75">
+  <div class="d-flex justify-content-between align-items-center p-5 pb-3">
+
+      <p class="mb-0"><b> {{profile.name}}  </b> | {{profile.role}} | {{profile.department}} </p>
+
+    <div>
+      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">
+        Order History
+      </button>
+      
+    </div> 
+    <div >
+      <button onclick="window.location.href='/logout'" class="btn btn-danger">Log Out</button>
+    </div> 
+  </div>
+
+  <form method="post" class="form" >
+    <hr style="width:90%;text-align:left;margin-left:0">
+  
+    {% if submitted %}
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+      <strong>You already submitted for this form</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <h1 class="mb-3">Reservation Form for {{ active_form.week}}</h1>
+    <hr style="width:70%;text-align:left;margin-left:0">
+    {% endif %}
+    {% csrf_token %}
+    {% for option in options %}
+      <h3 class="fs-4 mb-5 text-center">{{option.get_weekday_display.capitalize}}</h3>
+      <div class="container" style="max-width: 750px;">
+        <div class="row row-cols-2">
+            {% for food in option.food_items.values %}
+            <div class="col text-center">
+              <img style="width: 250px; height:250px; object-fit: cover;" class="img-thumbnail mb-3" src="{{food.image}}"/>
+              <div class="checkbox-{{weekday}} mb-5 fs-5">
+                <input onclick="selectCheckbox('{{food.price}}', '{{food.id}}-{{option.weekday}}')" class="form-check-input" type="checkbox" value="{{food.id}}" name="{{option.get_weekday_display}}" id="{{food.id}}-{{option.weekday}}">
+                <label class="form-check-label" name="{{food.name}}" id="{{food.id}}">{{ food.name }} - ₱{{ food.price }}</label><br>
+              </div>
+            </div>
+            {% endfor %}
+        </div>
+      </div>
+      <hr style="width:70%;text-align:left;margin-left:0">
+    {% endfor %}
+    <div class="mb-3">
+      <h3>Total: ₱<span id="total">0</span></h3>
+    </div>
+    <button type="submit" class="mb-5 btn btn-primary">Submit</button>
+  </form>
+</div>
+
+
+<div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="exampleModalLabel">Order History</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {% for order in orders %}
+          <div>
+            <b>{{order.form.display_week}}</b>
+            <p>Paid: 
+              {% if order.paid %}
+              <span class="badge rounded-pill text-bg-success">Paid</span>
+              {% else %}
+              <span class="badge rounded-pill text-bg-warning">Pending</span>
+              {% endif %}
+            </p>
+            <p>
+              {% for reservation in order.reservations.all %}
+                {{reservation.get_weekday_display.capitalize}}: 
+                {% for food in reservation.food_items.values %}
+                <span class="badge rounded-pill text-bg-secondary">{{food.name}} - ₱{{food.price}}</span>
+                {% endfor %}<br>
+              {% endfor %}
+            </p>
+            <p>Total {% if order.paid %} paid {% else %} to be paid {% endif %}: ₱{{order.total_paid}}</p>
+          </div>
+          
+          <hr style="width:90%;text-align:left;margin-left:0">
+    
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+
+
+  function selectCheckbox(price, id) {
+    var total = document.getElementById("total");
+    var checkbox = document.getElementById(id);
+    if (checkbox.checked == true){
+        total.innerText = parseInt(total.innerText) + parseInt(price)
+      } else {
+        total.innerText = parseInt(total.innerText) - parseInt(price)
+      }
+  }
+</script>
+{% endblock %}
