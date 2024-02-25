@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    </head>
+    <body>
+      <div class="d-flex flex-row">
+        {% for weekday,counts in count.items %}
+          <div class="border p-1 pb-3 " style="width:225px">
+            <p class="mb-0 text-start">{{weekday.capitalize}}:</p>
+            {% for count,value in counts.items %}
+              <p class="mb-0 text-center"><b>{{count}} : {{value}}</b></p>
+            {% endfor %}
+          </div> 
+        {% endfor %}  
+      </div>
+      <br>
+      {% for weekday,reservations in display.items %}
+        <div class="container-xl m-0">
+          <div class="row row-cols-3 ">
+            {% for reservation in reservations %}
+            <div class="border p-1 pb-3 col" style="width:225px">
+              <p class="mb-0 text-start"><i>{{weekday.capitalize}}</i></p>
+              <p class="mb-0 text-center"><b><u>{{reservation.order.first.profiles.first.name}}</u></b></p>
+              <p class="mb-0 text-center"><b>{{reservation.order.first.profiles.first.department}}</b></p>
+
+              {% for food_item in reservation.food_items.all %}
+                <ul  class="m-0 w-75 m-auto">
+                  <li class="mb-0">{{food_item}}</li>
+                </ul>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <br>
+      {% endfor %}
+      <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script> -->
+    </body>
+    <!-- <script>
+      window.onload = print;
+      addEventListener("afterprint", (event) => {});
+      onafterprint = (event) => {
+        window.location='/admin/forms/form';
+      };
+    </script> -->
+</html>
+
+

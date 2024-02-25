@@ -32,7 +32,7 @@ class Reservation(models.Model):
     ) 
     food_items = models.ManyToManyField(FoodItem)
     weekday = models.CharField(max_length=3, choices=WEEKDAYS)
-
+    
 class Form(models.Model):
     created_at = models.DateTimeField(default=datetime.datetime.now())
     active = models.BooleanField(default=False)
@@ -58,7 +58,7 @@ class Form(models.Model):
         return self.display_week()
 
 class Order(models.Model):
-    reservations=models.ManyToManyField(Reservation)
+    reservations=models.ManyToManyField(Reservation, related_name="order")
     form = models.ForeignKey(Form, on_delete=models.CASCADE)
     paid = models.BooleanField(default=False)
     total_paid = models.IntegerField(default=0)
@@ -69,6 +69,10 @@ class Order(models.Model):
 
     display_user.short_description = 'User'
     
+    
+    def __str__(self):
+        return self.form.display_week()
+
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)

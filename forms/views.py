@@ -10,6 +10,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import login as auth_login
 from django.contrib.auth import logout 
 from django.contrib.auth.decorators import login_required
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import *
 from .forms import ReservationForm
@@ -60,18 +62,22 @@ def callback(request):
     auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return HttpResponseRedirect('/')
 
-def logout(request):
-    logout(request)
-    return redirect('index')
+def source_callback(request):
+    print("test")
 
 @login_required(login_url='/login')
 def index(request):
-    if not request.user.profile:
+    if not hasattr(request.user,"profile"):
         return redirect('login')
     profile = request.user.profile
     active_form = Form.objects.filter(active=True).first()
     
     if not active_form:
+        context = {
+            "profile" : profile,
+            "orders": profile.orders.all(),
+            "submitted": len(profile.orders.filter(form=active_form)) != 0
+        }
         return render(request, "forms/index.html", context)
     
     if request.method == "POST":
@@ -91,13 +97,72 @@ def index(request):
         profile.orders.add(order)
         profile.save()
         return redirect('index')
-
+    
     options = active_form.options.all().order_by("weekday")
+
     context = {
         "active_form": active_form,
         "options": options,
         "profile" : profile,
-        "orders": profile.orders.all(),
-        "submitted": profile.orders.filter(form=active_form) != None
+        "orders": reversed(profile.orders.all()),
+        "submitted": len(profile.orders.filter(form=active_form)) != 0
     }
     return render(request, "forms/index.html", context)
+
+@csrf_exempt
+def delete_order(request,id):
+    print('zam')
+    if request.method == "POST":
+        order = Order.objects.get(id=id) 
+        if order.paid is False:
+            order.delete()
+        return redirect('index')
+
+def print_form(request, id):
+    if request.user.is_superuser:
+        weekdays = Option.WEEKDAYS
+        form = Form.objects.get(id=id)
+        orders = Order.objects.filter(form=form,paid=True)
+
+        display = {
+            "monday": [],
+            "tuesday": [],
+            "wednesday": [],
+            "thursday": [],
+            "friday": []
+        }
+
+        count = {
+            "monday": {},
+            "tuesday": {},
+            "wednesday": {},
+            "thursday": {},
+            "friday": {},
+            "total": {}
+        }
+
+        for option in form.options.all():
+            for food_item in option.food_items.all():
+                count[weekdays[int(option.weekday)-1][1]][food_item.name] = 0
+                if food_item.name not in count["total"]:
+                    count["total"][food_item.name] = 0
+
+        for order in orders:
+            reservations = order.reservations.all()
+            for reservation in reservations:
+                for food_item in reservation.food_items.all():
+                    count[weekdays[int(reservation.weekday)-1][1]][food_item.name] += 1
+                    count["total"][food_item.name] += 1
+                display[weekdays[int(reservation.weekday)-1][1]].append(reservation)
+               
+        print(count)
+        context = {
+            "weekdays": ["monday","tuesday","wednesday","thursday","friday"],
+            "form": form,
+            "orders": orders,
+            "display": display,
+            "count": count,
+        }
+        return render(request, "admin/print_form.html", context)
+    else:
+        return redirect('index')

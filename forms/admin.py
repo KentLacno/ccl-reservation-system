@@ -3,7 +3,8 @@ from .models import *
 from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.admin.widgets import AdminDateWidget
-
+from django.shortcuts import render, redirect
+from django.contrib import messages
 
 class DateInput(forms.DateInput):
     input_type = 'week'
@@ -61,10 +62,18 @@ class NewForm(forms.ModelForm):
 
         return super(NewForm, self).save(commit=commit)
 
+@admin.action(description="Print paid orders for form")
+def print_paid_orders(modeladmin, request, queryset):
+    if queryset.count() > 1:
+        messages.error(request, "You can only print 1 form at a time.")
+        return
+
+    return redirect('/admin/print_form/' + str(queryset.first().id))
 
 class FormAdmin(admin.ModelAdmin):
-  form = NewForm
-  list_display = ["display_week", "active", "id"]
+    form = NewForm
+    list_display = ["display_week", "active", "id"]
+    actions=[print_paid_orders]
 
 form_site.register(Form, FormAdmin)
 
@@ -86,20 +95,17 @@ form_site.register(FoodItem, FoodItemFormAdmin)
 
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ["name", "user", "role", "department",]
-
+    search_fields = ("name",)
 
 form_site.register(Profile, ProfileAdmin)
 
 @admin.action(description="Set paid")
 def set_paid(modeladmin, request, queryset):
-    print('ay')
-    queryset.update(status="p")
+    queryset.update(paid=True)
 
-
-@admin.action(description="Print orders")
-def print_orders(modeladmin, request, queryset):
-    print('ay')
-    queryset.update(status="p")
+@admin.action(description="Set unpaid")
+def set_unpaid(modeladmin, request, queryset):
+    queryset.update(paid=False)
 
 class OrderForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -112,7 +118,10 @@ class OrderForm(forms.ModelForm):
 class OrderFormAdmin(admin.ModelAdmin):
     form = OrderForm
     list_display = ["id", "display_user", "form", "total_paid", "paid"]
-    actions=[print_orders]
+    actions=[set_paid, set_unpaid]
+    list_filter = [
+         "paid",
+    ]
 
 form_site.register(Order, OrderFormAdmin)
 
