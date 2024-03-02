@@ -2,57 +2,52 @@
 {% block title %}Home Page{% endblock %}
 {% block content %}
 
-<div style="max-width:900px; width: 70%; border: 5px solid whitesmoke; background-color: white;" class="m-auto rounded mb-5">
-  <div class="d-flex justify-content-between align-items-center p-5 pb-3">
-      <p class="mb-0 fs-5"><b> {{profile.name}}  </b> | {{profile.role}} | {{profile.department}} </p>
-
-      <div>
-        <button type="button" class="fs-5 btn btn-primary" data-bs-toggle="modal" data-bs-target="#orderHistory">
-          Order History
-        </button>
-      </div> 
-      <div >
-        <button onclick="window.location.href='/login'" class="fs-5 btn btn-warning">Log In Again</button>
-      </div> 
+<div style="max-width:900px; width: 85%; border: 5px solid whitesmoke; background-color: white;" class="m-auto rounded mb-5">
+  <div class="d-flex justify-content-between align-items-center p-3 pb-3">
+    <p class="mb-0"><b> {{profile.name}}  </b>  <br>{{profile.role}} <br> {{profile.department}} </p>
+    <div class="text-end w-50">
+      <button type="button" class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#orderHistory">
+        Order History
+      </button>
+      <button onclick="window.location.href='/login'" class="btn btn-warning">Log In Again</button>
+    </div>
+   
   </div>
 
   {% if active_form %}
     <form method="post" class="form" >
-      <hr style="width:90%;text-align:left;margin-left:0">
-      {% csrf_token %}
-      {% if submitted %}
-      <div class="alert alert-info alert-dismissible fade show" role="alert">
-        <strong class="fs-5">You already submitted for this form</strong>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-      {% endif %}
-      <h1 class="mb-3 text-center">Reservation Form for <br>{{ active_form.display_week}}</h1>
-      <hr style="width:70%;text-align:left;margin-left:0">
-      {% for option in options %}
-        <h3 class="fs-4 mb-5 text-center">{{option.get_weekday_display.capitalize}}</h3>
-        <div class="container" style="max-width: 750px;">
-          <div class="row row-cols-2">
-              {% for food in option.food_items.values %}
-              <div class="col text-center">
-                <img style="width: 250px; height:250px; object-fit: cover;" class="img-thumbnail mb-3" src="{{food.image}}"/>
-                <div class="checkbox-{{weekday}} mb-5 fs-5">
-                  <input onclick="selectCheckbox('{{food.price}}', '{{food.id}}-{{option.weekday}}')" class="form-check-input" type="checkbox" value="{{food.id}}" name="{{option.get_weekday_display}}" id="{{food.id}}-{{option.weekday}}">
-                  <label class="form-check-label" name="{{food.name}}" id="{{food.id}}">{{ food.name }} - ₱{{ food.price }}</label><br>
-                </div>
-              </div>
-              {% endfor %}
-          </div>
+      <hr style="width:95%;text-align:left;margin-left:0; border-radius: 3px; border: 2px solid gray; opacity: 0.15">
+        {% csrf_token %}
+        {% if submitted %}
+        <div class="alert alert-info alert-dismissible fade show w-75" role="alert">
+          <strong>You already submitted for this form</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
-        <hr style="width:70%;text-align:left;margin-left:0">
-      {% endfor %}
-      <!-- <div class="form-check form-switch mb-3">
-        <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
-        <label class="form-check-label" for="flexSwitchCheckDefault">Pay through GCash?</label>
-      </div> -->
-      <div class="mb-3">
-        <h3>Total: ₱<span id="total">0</span></h3>
-      </div>
-      <button type="submit" class="mb-5 btn btn-primary">Submit</button>
+        {% endif %}
+        <h1 style="font-size: 1.5rem" class="mb-3 text-center">Reservation Form for <br>{{ active_form.display_week}}</h1>
+        <hr style="width:95%;text-align:left;margin-left:0; border-radius: 3px; border: 2px solid gray; opacity: 0.15">
+        {% for option in options %}
+          <h3 class="mb-4 text-center">{{option.get_weekday_display.capitalize}}</h3>
+          <div class="container" style="max-width: 750px;">
+            <div class="row row-cols-1">
+                {% for food in option.food_items.values %}
+                <div class="col text-center">
+                  <img style="width: 250px; height: 250px;; object-fit: cover;" class="img-thumbnail mb-3" src="{{food.image}}"/>
+                  <div class="checkbox-{{weekday}} mb-5">
+                    <input style="border: 1px solid black"onclick="selectCheckbox('{{food.price}}', '{{food.id}}-{{option.weekday}}')" class="form-check-input" type="checkbox" value="{{food.id}}" name="{{option.get_weekday_display}}" id="{{food.id}}-{{option.weekday}}">
+                    <label class="form-check-label" name="{{food.name}}" id="{{food.id}}">{{ food.name }} - ₱{{ food.price }}</label><br>
+                  </div>
+                </div>
+                {% endfor %}
+            </div>
+          </div>
+          <hr style="width:95%;text-align:left;margin-left:0; border-radius: 3px; border: 2px solid gray; opacity: 0.15">
+        {% endfor %}
+
+        <div class="mb-4">
+          <h3>Total: ₱<span id="total">0</span></h3>
+        </div>
+        <button type="submit" class="mb-5 btn btn-primary">Submit</button>
     </form>
 
   {% else %}
@@ -85,7 +80,7 @@
                     <span class="badge rounded-pill text-bg-warning">Pending</span>
                     {% endif %}</h6>
                   <p class="card-text">{% for reservation in order.reservations.all %}
-                    {{reservation.get_weekday_display.capitalize}}: 
+                    {{reservation.get_weekday_display.capitalize}}:<br>
                     {% for food in reservation.food_items.values %}
                     <span class="badge rounded-pill text-bg-secondary">{{food.name}} - ₱{{food.price}}</span>
                     {% endfor %}<br>

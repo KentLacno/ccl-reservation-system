@@ -5,6 +5,7 @@ from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.contrib.admin.widgets import AdminDateWidget
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.contrib.auth.models import User
 
 class DateInput(forms.DateInput):
     input_type = 'week'
@@ -125,3 +126,4 @@ class OrderFormAdmin(admin.ModelAdmin):
 
 form_site.register(Order, OrderFormAdmin)
 
+form_site.register(User)

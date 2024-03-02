@@ -3,13 +3,14 @@
 <html lang="en">
     <head>
         <title>{% block title %}{% endblock %}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="{% static 'css/index.css' %}">
         <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
         {% block head %}
         {% endblock %}
     </head>
-    <body>
-        <h1 style="color:#2679A6" class="text-center p-3"><img style="width:100px" class="me-3" src="https://cclcentrex.edu.ph/images/ccl.png">CCL CentrEx Online Reservation System</h1>
+    <body style="background-image: linear-gradient(to bottom right, #dcf0f5, #f3f3f3, #f9f6de)">
+        <h1 style="color:rgb(76, 111, 130)" class="text-center p-3"><img style="width:100px" class="me-3" src="https://cclcentrex.edu.ph/images/ccl.png">CCL CentrEx Online Reservation System</h1>
         {% block content %}
         {% endblock %}
         <script src="{% static 'js/bootstrap.min.js' %}"></script>

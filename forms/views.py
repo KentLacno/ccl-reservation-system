@@ -105,13 +105,14 @@ def index(request):
         "options": options,
         "profile" : profile,
         "orders": reversed(profile.orders.all()),
-        "submitted": len(profile.orders.filter(form=active_form)) != 0
+        "submitted": len(profile.orders.filter(form=active_form)) != 0,
     }
+    if request.user_agent.is_mobile:
+        return render(request, "forms/mobile_index.html", context)
     return render(request, "forms/index.html", context)
 
 @csrf_exempt
 def delete_order(request,id):
-    print('zam')
     if request.method == "POST":
         order = Order.objects.get(id=id) 
         if order.paid is False:
