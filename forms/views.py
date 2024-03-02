@@ -54,9 +54,9 @@ def callback(request):
         user.save()
         Profile.objects.create(
             user=user,
-            name=response["displayName"],
-            role=response["jobTitle"],
-            department=response["department"]
+            name=response.get("displayName"),
+            role=response.get("jobTitle"),
+            department=response.get("department")
         )
 
     auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
