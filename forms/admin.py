@@ -63,18 +63,26 @@ class NewForm(forms.ModelForm):
 
         return super(NewForm, self).save(commit=commit)
 
-@admin.action(description="Print paid orders for form")
-def print_paid_orders(modeladmin, request, queryset):
+@admin.action(description="Print orders for form")
+def print_orders(modeladmin, request, queryset):
     if queryset.count() > 1:
         messages.error(request, "You can only print 1 form at a time.")
         return
 
     return redirect('/admin/print_form/' + str(queryset.first().id))
 
+@admin.action(description="Print/check quantities")
+def check_quantites(modeladmin, request, queryset):
+    if queryset.count() > 1:
+        messages.error(request, "You can only check 1 form at a time.")
+        return
+
+    return redirect('/admin/check_quantities/' + str(queryset.first().id))
+
 class FormAdmin(admin.ModelAdmin):
     form = NewForm
     list_display = ["display_week", "active", "id"]
-    actions=[print_paid_orders]
+    actions=[print_orders, check_quantites]
 
 form_site.register(Form, FormAdmin)
 
@@ -123,6 +131,9 @@ class OrderFormAdmin(admin.ModelAdmin):
     list_filter = [
          "paid",
     ]
+    search_fields = ["profiles__name"]
+    
+
 
 form_site.register(Order, OrderFormAdmin)
 

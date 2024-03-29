@@ -49,16 +49,19 @@ def callback(request):
     try:
         user = User.objects.get(email=response["mail"])
     except User.DoesNotExist:
-        random_password = "".join(random.choice(string.ascii_letters) for i in range(32))
-        user = User(username=response["mail"], email=response["mail"], password=make_password(random_password))
-        user.save()
-        Profile.objects.create(
-            user=user,
-            name=response.get("displayName"),
-            role=response.get("jobTitle"),
-            department=response.get("department")
-        )
-
+        email = response["mail"]
+        if email.split('@')[1] == "cclcentrex.edu.ph":
+            random_password = "".join(random.choice(string.ascii_letters) for i in range(32))
+            user = User(username=response["mail"], email=response["mail"], password=make_password(random_password))
+            user.save()
+            Profile.objects.create(
+                user=user,
+                name=response.get("displayName"),
+                role=response.get("jobTitle"),
+                department=response.get("department")
+            )
+        else:
+            return HttpResponseRedirect('/login')
     auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return HttpResponseRedirect('/')
 
@@ -108,6 +111,7 @@ def index(request):
         "submitted": len(profile.orders.filter(form=active_form)) != 0,
     }
     if request.user_agent.is_mobile:
+        print("ay")
         return render(request, "forms/mobile_index.html", context)
     return render(request, "forms/index.html", context)
 
@@ -123,7 +127,7 @@ def print_form(request, id):
     if request.user.is_superuser:
         weekdays = Option.WEEKDAYS
         form = Form.objects.get(id=id)
-        orders = Order.objects.filter(form=form,paid=True)
+        orders = Order.objects.filter(form=form)
 
         display = {
             "monday": [],
@@ -165,5 +169,49 @@ def print_form(request, id):
             "count": count,
         }
         return render(request, "admin/print_form.html", context)
+    else:
+        return redirect('index')
+
+def check_quantities(request, id):
+    if request.user.is_superuser:
+        weekdays = Option.WEEKDAYS
+        form = Form.objects.get(id=id)
+        orders = Order.objects.filter(form=form)
+
+        display = {
+            "monday": [],
+            "tuesday": [],
+            "wednesday": [],
+            "thursday": [],
+            "friday": []
+        }
+
+        count = {
+            "monday": {},
+            "tuesday": {},
+            "wednesday": {},
+            "thursday": {},
+            "friday": {},
+            "total": {}
+        }
+
+        for option in form.options.all():
+            for food_item in option.food_items.all():
+                count[weekdays[int(option.weekday)-1][1]][food_item.name] = 0
+                if food_item.name not in count["total"]:
+                    count["total"][food_item.name] = 0
+
+        for order in orders:
+            reservations = order.reservations.all()
+            for reservation in reservations:
+                for food_item in reservation.food_items.all():
+                    count[weekdays[int(reservation.weekday)-1][1]][food_item.name] += 1
+                    count["total"][food_item.name] += 1
+                display[weekdays[int(reservation.weekday)-1][1]].append(reservation)
+               
+        context = {
+            "count": count,
+        }
+        return render(request, "admin/check_quantities.html", context)
     else:
         return redirect('index')
