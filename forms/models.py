@@ -77,7 +77,7 @@ class Order(models.Model):
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length = 50, unique = True)
-    role = models.CharField(max_length = 20, null=True)
-    department = models.CharField(max_length = 20, null=True)
+    role = models.CharField(max_length = 20, blank=True, null=True)
+    department = models.CharField(max_length = 20, blank=True, null=True)
     orders = models.ManyToManyField(Order,  related_name="profiles")
     
