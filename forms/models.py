@@ -4,6 +4,12 @@ import datetime
 from datetime import timedelta
 
 class FoodItem(models.Model):
+    LUNCH = "LUNCH"
+    SNACKS = "SNACKS"
+    TYPE_CHOICES = ((LUNCH,"Lunch"),(SNACKS,"Snacks"))
+
+
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES,default=LUNCH)
     name = models.CharField(max_length=200)
     price = models.IntegerField(default=0)
     image = models.CharField(max_length=200)
@@ -34,7 +40,10 @@ class Reservation(models.Model):
     weekday = models.CharField(max_length=3, choices=WEEKDAYS)
     
 class Form(models.Model):
+
+
     created_at = models.DateTimeField(default=datetime.datetime.now())
+
     active = models.BooleanField(default=False)
     week = models.CharField(max_length=50)
     options=models.ManyToManyField(Option)
@@ -54,18 +63,50 @@ class Form(models.Model):
 
     display_week.short_description = 'Week'
 
+    def display_type(self):
+        children = ['lunchform', 'snacksform']
+        for c in children:
+            try:
+                _ = self.__getattribute__(c) # returns child model
+            except:
+                pass
+            else:
+                return self.__getattribute__(c)
+        else:
+            return 'Not specified'
+
     def __str__(self):
         return self.display_week()
 
+class LunchForm(Form):
+    type = "LUNCH"
+
+    def __str__(self):
+        return "Lunch Form" 
+
+
+class SnacksForm(Form):
+    type = "SNACKS"
+
+    def __str__(self):
+        return "Snacks Form" 
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length = 50, unique = True)
+    role = models.CharField(max_length = 20, blank=True, null=True)
+    department = models.CharField(max_length = 20, blank=True, null=True)
+    
+    
 class Order(models.Model):
     reservations=models.ManyToManyField(Reservation, related_name="order")
     form = models.ForeignKey(Form, on_delete=models.CASCADE)
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     paid = models.BooleanField(default=False)
     total_paid = models.IntegerField(default=0)
 
     def display_user(self):
-        """Create a string for the Genre. This is required to display genre in Admin."""
-        return ', '.join(profile.name for profile in self.profiles.all()[:3])
+        return self.profile.name
 
     display_user.short_description = 'User'
     
@@ -74,10 +115,3 @@ class Order(models.Model):
         return self.form.display_week()
 
 
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length = 50, unique = True)
-    role = models.CharField(max_length = 20, blank=True, null=True)
-    department = models.CharField(max_length = 20, blank=True, null=True)
-    orders = models.ManyToManyField(Order,  related_name="profiles")
-    

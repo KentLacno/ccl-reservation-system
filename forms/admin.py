@@ -15,25 +15,21 @@ class FormAdminArea(admin.AdminSite):
 
 form_site = FormAdminArea(name="FormAdmin")
 
-class NewForm(forms.ModelForm):
-    # week = WeekField(widget= AdminDateWidget)
-    monday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all())
-    tuesday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all())
-    wednesday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all())
-    thursday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all())
-    friday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all())
+class NewLunchForm(forms.ModelForm):
+    monday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="LUNCH"))
+    tuesday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="LUNCH"))
+    wednesday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="LUNCH"))
+    thursday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="LUNCH"))
+    friday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="LUNCH"))
 
     def __init__(self, *args, **kwargs):
-        super(NewForm, self).__init__(*args, **kwargs)
+        super(NewLunchForm, self).__init__(*args, **kwargs)
         if "instance" in kwargs and kwargs["instance"]:
             for option in kwargs["instance"].options.all():
                 self.initial[option.get_weekday_display()] = option.food_items.all()
     
-    def somefunction(k, values):
-        return dict((k, v) for v in values)
-    
     class Meta:
-        model = Form
+        model = LunchForm
         exclude=('created_at','options')
         widgets = {
             'week': DateInput(),
@@ -41,7 +37,7 @@ class NewForm(forms.ModelForm):
 
     def save(self, commit=True):
         if not self.instance.id:
-            form = super(NewForm, self).save()
+            form = super(NewLunchForm, self).save()
             weekdays = ["monday","tuesday","wednesday","thursday","friday"]
             for i in range(1,6):
                 option = Option.objects.create(weekday=str(i))
@@ -61,8 +57,52 @@ class NewForm(forms.ModelForm):
                 option.save()
                 form.options.add(option)
 
-        return super(NewForm, self).save(commit=commit)
+        return super(NewLunchForm, self).save(commit=commit)
 
+class NewSnacksForm(forms.ModelForm):
+    monday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="SNACKS"))
+    tuesday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="SNACKS"))
+    wednesday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="SNACKS"))
+    thursday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="SNACKS"))
+    friday = forms.ModelMultipleChoiceField(required=False, widget=FilteredSelectMultiple("Food Items", is_stacked=False), queryset=FoodItem.objects.all().filter(type="SNACKS"))
+
+    def __init__(self, *args, **kwargs):
+        super(NewSnacksForm, self).__init__(*args, **kwargs)
+        if "instance" in kwargs and kwargs["instance"]:
+            for option in kwargs["instance"].options.all():
+                self.initial[option.get_weekday_display()] = option.food_items.all()
+    
+    class Meta:
+        model = SnacksForm
+        exclude=('created_at','options')
+        widgets = {
+            'week': DateInput(),
+        }
+
+    def save(self, commit=True):
+        if not self.instance.id:
+            form = super(NewSnacksForm, self).save()
+            weekdays = ["monday","tuesday","wednesday","thursday","friday"]
+            for i in range(1,6):
+                option = Option.objects.create(weekday=str(i))
+                option.food_items.set(FoodItem.objects.filter(id__in=self.data.getlist(weekdays[i-1])))
+                option.save()
+                form.options.add(option)
+        else:
+            form = self.instance
+            weekdays = ["monday","tuesday","wednesday","thursday","friday"]
+            for i in range(1,6):
+
+                if form.options.filter(weekday=str(i)):
+                    option = form.options.filter(weekday=str(i)).first()
+                else:
+                    option = Option.objects.create(weekday=str(i))
+                option.food_items.set(FoodItem.objects.filter(id__in=self.data.getlist(weekdays[i-1])))
+                option.save()
+                form.options.add(option)
+
+        return super(NewSnacksForm, self).save(commit=commit)
+    
 @admin.action(description="Print orders for form")
 def print_orders(modeladmin, request, queryset):
     if queryset.count() > 1:
@@ -79,12 +119,19 @@ def check_quantites(modeladmin, request, queryset):
 
     return redirect('/admin/check_quantities/' + str(queryset.first().id))
 
-class FormAdmin(admin.ModelAdmin):
-    form = NewForm
+class LunchFormAdmin(admin.ModelAdmin):
+    form = NewLunchForm
     list_display = ["display_week", "active", "id"]
     actions=[print_orders, check_quantites]
 
-form_site.register(Form, FormAdmin)
+form_site.register(LunchForm, LunchFormAdmin, )
+
+class SnacksFormAdmin(admin.ModelAdmin):
+    form = NewSnacksForm
+    list_display = ["display_week", "active", "id"]
+    actions=[print_orders, check_quantites]
+
+form_site.register(SnacksForm, SnacksFormAdmin, )
 
 class FoodItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -124,16 +171,31 @@ class OrderForm(forms.ModelForm):
         model = Order
         fields = ("paid", )
 
-class OrderFormAdmin(admin.ModelAdmin):
-    form = OrderForm
-    list_display = ["id", "display_user", "form", "total_paid", "paid"]
-    actions=[set_paid, set_unpaid]
-    list_filter = [
-         "paid",
-    ]
-    search_fields = ["profiles__name"]
-    
+class FormNameListFilter(admin.SimpleListFilter):
+    title = ("form week")
+    parameter_name = "week"
 
+    def lookups(self, request, model_admin):
+    
+        forms = set([c.form for c in model_admin.model.objects.all()])
+        return [(f.week, f.__str__) for f in forms]
+
+    def queryset(self, request, queryset):
+
+        if self.value():
+            return queryset.filter(form__week=self.value())
+
+
+
+class OrderFormAdmin(admin.ModelAdmin):
+
+    form = OrderForm
+    list_display = ["id", "display_user", "form", "total_paid", "paid",]
+    actions=[set_paid, set_unpaid]
+    list_filter = ("paid",FormNameListFilter,)
+    search_fields = ("profile__name",)
+
+    
 
 form_site.register(Order, OrderFormAdmin)
 

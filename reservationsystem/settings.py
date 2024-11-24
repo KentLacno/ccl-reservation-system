@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import environ
 
+environ.Env.read_env()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,13 +27,14 @@ SECRET_KEY = 'django-insecure-8@f1g2yx2j@89@-j24sb@t)p^bsvp(3aool%1!ly62*5jwdy-*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["probable-comic-hound.ngrok-free.app", "localhost"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
     'forms.apps.FormsConfig',
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,7 +44,21 @@ INSTALLED_APPS = [
     'django.contrib.sites',
     'django_user_agents',
     'django_extensions',
+    'bootstrap5'
 ]
+
+JAZZMIN_SETTINGS = {
+    "site_title": "CCL CentrEx Reservation System Admin",
+    
+    "site_header": "CCL ResSystem Admin",
+
+
+    "site_brand": "CCL ResSystem Admin",
+    "site_logo": "img/ccl.png",
+    "login_logo":"img/ccl.png",
+    "site_icon": "img/ccl.png",
+    "order_with_respect_to": ["forms", "forms.lunchform","forms.snacksform"],
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -82,8 +99,7 @@ DATABASES = {
     'default': {
         'ENGINE'  : 'django.db.backends.mysql', 
         'NAME'    : 'reservation_system',                 
-        'USER'    : 'user',                     
-        'PASSWORD': 'imongmama123',              
+        'USER'    : 'root',                              
         'HOST'    : 'localhost',               
         'PORT'    : '3306',
     }
