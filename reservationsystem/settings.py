@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-8@f1g2yx2j@89@-j24sb@t)p^bsvp(3aool%1!ly62*5jwdy-*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["probable-comic-hound.ngrok-free.app", "localhost",]
+ALLOWED_HOSTS = ["probable-comic-hound.ngrok-free.app", "localhost","ccl-reservation-system.onrender.com"]
 
 
 # Application definition

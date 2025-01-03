@@ -24,13 +24,14 @@ import webbrowser
 env = environ.Env()
 
 SECRET_KEY = env("PAYMONGO_SECRET_KEY")
+HOST_URL = env("HOST_URL")
 
 
 User = get_user_model()
 def initialize_oauth():
     client_id = settings.MICROSOFT_CLIENT_ID
     scope = ["User.Read", "profile", "email", "openid"]
-    redirect_uri = 'http://localhost:8000/callback'
+    redirect_uri = HOST_URL+'callback'
 
     return OAuth2Session(client_id,scope=scope,redirect_uri=redirect_uri)
 
@@ -221,7 +222,7 @@ def pay_order(request,id):
                     "send_email_receipt": False,
                     "show_description": True,
                     "show_line_items": True,
-                    "success_url": "https://cclcentrexreservationsystem.pythonanywhere.com/",
+                    "success_url": HOST_URL,
 
                     "metadata": {
                         "type": "order",
@@ -254,7 +255,7 @@ def pay_order(request,id):
                     "send_email_receipt": False,
                     "show_description": True,
                     "show_line_items": True,
-                    "success_url": "https://cclcentrexreservationsystem.pythonanywhere.com/",
+                    "success_url": HOST_URL,
 
                     "metadata": {
                         "type": "reservation",
