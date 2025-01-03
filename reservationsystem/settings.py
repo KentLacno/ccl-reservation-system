@@ -147,5 +147,4 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-MICROSOFT_CLIENT_ID = "122ad491-e337-4cad-b9b1-8f5c19ff4bf3"
-MICROSOFT_CLIENT_SECRET = "k3Z8Q~e1xupCKc2Mo4.piKkHJu_rly~vL7_Mob6o"
+
