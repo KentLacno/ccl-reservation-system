@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-8@f1g2yx2j@89@-j24sb@t)p^bsvp(3aool%1!ly62*5jwdy-*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["probable-comic-hound.ngrok-free.app", "localhost"]
+ALLOWED_HOSTS = ["probable-comic-hound.ngrok-free.app", "localhost",]
 
 
 # Application definition
@@ -49,10 +49,7 @@ INSTALLED_APPS = [
 
 JAZZMIN_SETTINGS = {
     "site_title": "CCL CentrEx Reservation System Admin",
-    
     "site_header": "CCL ResSystem Admin",
-
-
     "site_brand": "CCL ResSystem Admin",
     "site_logo": "img/ccl.png",
     "login_logo":"img/ccl.png",
@@ -99,7 +96,7 @@ DATABASES = {
     'default': {
         'ENGINE'  : 'django.db.backends.mysql', 
         'NAME'    : 'reservation_system',                 
-        'USER'    : 'root',                              
+        'USER'    : 'root',                            
         'HOST'    : 'localhost',               
         'PORT'    : '3306',
     }

@@ -9,20 +9,18 @@
         <div class="container-xl m-0">
           <div class="row row-cols-3 ">
             {% for reservation in reservations %}
-            {% if reservation.food_items.count != 0 %}
-            <div class="border p-1 pb-3 col" style="width:225px">
+            <div class="border p-1 pb-3 col" style="width:250px">
               <p class="mb-0 text-start"><i>{{weekday.capitalize}}</i></p>
               <p class="mb-0 text-center"><b><u>{{reservation.order.first.profile.name}}</u></b></p>
               <p class="mb-0 text-center"><b>{{reservation.order.first.profile.department}}</b></p>
 
-              {% for food_item in reservation.food_items.all %}
+              {% for selection in reservation.selection_set.all %}
                 <ul  class="m-0 w-75 m-auto">
-                  <li class="mb-0">{{food_item}}</li>
+                  <li class="mb-0">{{selection.quantity}} {{selection.food_item.name}} - ₱{{selection.food_item.price}}</li>
                 </ul>
+               <p class="mb-0 text-center">Total: ₱{{selection.line_total}}</p>
               {% endfor %}
             </div>
-       
-            {% endif %}
             {% endfor %}
           </div>
         </div>

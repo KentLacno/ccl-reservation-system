@@ -6,6 +6,7 @@ from django.contrib.admin.widgets import AdminDateWidget
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.utils.html import format_html
 
 class DateInput(forms.DateInput):
     input_type = 'week'
@@ -27,7 +28,7 @@ class NewLunchForm(forms.ModelForm):
         if "instance" in kwargs and kwargs["instance"]:
             for option in kwargs["instance"].options.all():
                 self.initial[option.get_weekday_display()] = option.food_items.all()
-    
+
     class Meta:
         model = LunchForm
         exclude=('created_at','options')
@@ -71,7 +72,7 @@ class NewSnacksForm(forms.ModelForm):
         if "instance" in kwargs and kwargs["instance"]:
             for option in kwargs["instance"].options.all():
                 self.initial[option.get_weekday_display()] = option.food_items.all()
-    
+
     class Meta:
         model = SnacksForm
         exclude=('created_at','options')
@@ -102,7 +103,7 @@ class NewSnacksForm(forms.ModelForm):
                 form.options.add(option)
 
         return super(NewSnacksForm, self).save(commit=commit)
-    
+
 @admin.action(description="Print orders for form")
 def print_orders(modeladmin, request, queryset):
     if queryset.count() > 1:
@@ -137,6 +138,7 @@ class FoodItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(FoodItemForm, self).__init__(*args, **kwargs)
 
+
     class Meta:
         model = FoodItem
         exclude=('weekday', )
@@ -144,7 +146,9 @@ class FoodItemForm(forms.ModelForm):
 
 class FoodItemFormAdmin(admin.ModelAdmin):
     form = FoodItemForm
-    list_display = ["name", "price", "image"]
+    search_fields = ("name",)
+
+    list_display = ["name", "price", "type", "image_displayed"]
 
 
 form_site.register(FoodItem, FoodItemFormAdmin)
@@ -163,20 +167,30 @@ def set_paid(modeladmin, request, queryset):
 def set_unpaid(modeladmin, request, queryset):
     queryset.update(paid=False)
 
+@admin.action(description="Check order")
+def check_order(modeladmin, request, queryset):
+    if queryset.count() > 1:
+        messages.error(request, "You can only check 1 order at a time.")
+        return
+
+    return redirect('/admin/check_order/' + str(queryset.first().id))
+
 class OrderForm(forms.ModelForm):
+
     def __init__(self, *args, **kwargs):
         super(OrderForm, self).__init__(*args, **kwargs)
 
     class Meta:
         model = Order
-        fields = ("paid", )
+        fields = ("paid",)
+
 
 class FormNameListFilter(admin.SimpleListFilter):
     title = ("form week")
     parameter_name = "week"
 
     def lookups(self, request, model_admin):
-    
+
         forms = set([c.form for c in model_admin.model.objects.all()])
         return [(f.week, f.__str__) for f in forms]
 
@@ -190,13 +204,15 @@ class FormNameListFilter(admin.SimpleListFilter):
 class OrderFormAdmin(admin.ModelAdmin):
 
     form = OrderForm
-    list_display = ["id", "display_user", "form", "total_paid", "paid",]
-    actions=[set_paid, set_unpaid]
+    list_display = ["id", "display_user", "display_order_type", "form", "total_paid", "paid",]
+    actions=[set_paid, set_unpaid,check_order]
     list_filter = ("paid",FormNameListFilter,)
     search_fields = ("profile__name",)
 
-    
+
 
 form_site.register(Order, OrderFormAdmin)
+
+
 
 form_site.register(User)
