@@ -25,11 +25,13 @@ env = environ.Env()
 
 SECRET_KEY = env("PAYMONGO_SECRET_KEY")
 HOST_URL = env("HOST_URL")
+MICROSOFT_CLIENT_SECRET = env("MICROSOFT_CLIENT_SECRET")
+MICROSOFT_CLIENT_ID = env("MICROSOFT_CLIENT_ID")
 
 
 User = get_user_model()
 def initialize_oauth():
-    client_id = settings.MICROSOFT_CLIENT_ID
+    client_id = MICROSOFT_CLIENT_ID
     scope = ["User.Read", "profile", "email", "openid"]
     redirect_uri = HOST_URL+'callback'
 
@@ -46,7 +48,7 @@ def login(request):
     return render(request, "forms/login_redirect.html", context)
 
 def callback(request):
-    client_secret = settings.MICROSOFT_CLIENT_SECRET
+    client_secret = MICROSOFT_CLIENT_SECRET
     token_url = 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token'
     code = request.GET.get('code','')
     oauth = initialize_oauth()
