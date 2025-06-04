@@ -63,3 +63,4 @@ Thumbs.db
 # Secret files
 secrets.py
 secret_settings.py
+reservationsystem/settings.py
