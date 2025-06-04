@@ -1,369 +1,343 @@
-import random
-import string
-import requests
+"""
+Refactored views with improved readability and structure
+"""
 import json
 from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import render, redirect
-from django.conf import settings
-from django.contrib.auth.hashers import make_password
-from django.contrib.auth import get_user_model
-from django.contrib.auth import login as auth_login
-from django.contrib.auth import logout
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import get_user_model, login as auth_login
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-
-from .models import *
-from .forms import ReservationForm
-
-from requests_oauthlib import OAuth2Session
+from django.contrib import messages
 import environ
-import base64
-import webbrowser
 
+from .models import LunchForm, SnacksForm, Order, Reservation, Form
+from .services import (
+    MicrosoftOAuthService, UserService, PaymentService, 
+    OrderService, ReportService
+)
+from .constants import WEEKDAYS
+
+# Environment setup
 env = environ.Env()
-
-SECRET_KEY = env("PAYMONGO_SECRET_KEY")
+PAYMONGO_SECRET_KEY = env("PAYMONGO_SECRET_KEY")
 HOST_URL = env("HOST_URL")
 MICROSOFT_CLIENT_SECRET = env("MICROSOFT_CLIENT_SECRET")
 MICROSOFT_CLIENT_ID = env("MICROSOFT_CLIENT_ID")
 
-
 User = get_user_model()
-def initialize_oauth():
-    client_id = MICROSOFT_CLIENT_ID
-    scope = ["User.Read", "profile", "email", "openid"]
-    redirect_uri = HOST_URL+'callback'
 
-    return OAuth2Session(client_id,scope=scope,redirect_uri=redirect_uri)
+# Initialize services
+oauth_service = MicrosoftOAuthService(
+    MICROSOFT_CLIENT_ID, 
+    MICROSOFT_CLIENT_SECRET, 
+    HOST_URL
+)
+payment_service = PaymentService(PAYMONGO_SECRET_KEY, HOST_URL)
+
 
 def login(request):
-    authorization_base_url = 'https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize'
-
-    oauth = initialize_oauth()
-    authorization_url, state = oauth.authorization_url(authorization_base_url)
-
-    # return HttpResponse('Please go here and authorize ' + authorization_url )
-    context = {"authorization_url": authorization_url }
+    """
+    Redirect user to Microsoft OAuth authorization
+    """
+    authorization_url = oauth_service.get_authorization_url()
+    context = {"authorization_url": authorization_url}
     return render(request, "forms/login_redirect.html", context)
 
+
 def callback(request):
-    client_secret = MICROSOFT_CLIENT_SECRET
-    token_url = 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token'
-    code = request.GET.get('code','')
-    oauth = initialize_oauth()
-    token = oauth.fetch_token(token_url, client_secret=client_secret, code=code)
-
-    req = requests.get("https://graph.microsoft.com/v1.0/me?$select=displayName,givenName,jobTitle,mail,department,id", headers={"Authorization": "Bearer " + token["access_token"]})
-    response = req.json()
-
+    """
+    Handle OAuth callback and user authentication
+    """
+    authorization_code = request.GET.get('code', '')
+    if not authorization_code:
+        messages.error(request, "Authorization failed. Please try again.")
+        return redirect('login')
+    
     try:
-        user = User.objects.get(email=response["mail"])
-    except User.DoesNotExist:
-        email = response["mail"]
-        if email.split('@')[1] == "cclcentrex.edu.ph":
-            random_password = "".join(random.choice(string.ascii_letters) for i in range(32))
-            user = User(username=response["mail"], email=response["mail"], password=make_password(random_password))
-            user.save()
-            Profile.objects.create(
-                user=user,
-                name=response.get("displayName"),
-                role=response.get("jobTitle"),
-                department=response.get("department")
-            )
-        else:
-            return HttpResponseRedirect('/login')
-    auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    return HttpResponseRedirect('/')
+        # Get user info from Microsoft
+        user_data = oauth_service.get_user_info(authorization_code)
+        
+        # Try to find existing user
+        user = User.objects.filter(email=user_data["mail"]).first()
+        
+        if not user:
+            # Create new user if allowed
+            user = UserService.create_user_from_oauth(user_data)
+            if not user:
+                messages.error(request, "Access denied. Invalid email domain.")
+                return redirect('login')
+        
+        # Log user in
+        auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        return redirect('index')
+        
+    except Exception as e:
+        messages.error(request, "Authentication failed. Please try again.")
+        return redirect('login')
+
 
 @csrf_exempt
 def webhooks(request):
-    req_json = json.loads(request.body.decode("utf-8"))["data"]["attributes"]
-    print(req_json["type"])
-    if req_json["type"] == "checkout_session.payment.paid":
-        if req_json["data"]["attributes"]["metadata"]["type"] == "order":
-            order_id = req_json["data"]["attributes"]["metadata"]["id"]
-
-            order = Order.objects.get(id=order_id)
-            print(order)
-            order.paid = True
-            order.save()
-        elif req_json["data"]["attributes"]["metadata"]["type"] == "reservation":
-            reservation_id = req_json["data"]["attributes"]["metadata"]["id"]
-            reservation = Order.objects.get(id=reservation_id)
-            reservation.paid = True
-            reservation.save()
-            order = reservation.order
-            reservations = order.reservations.all()
-            all_paid = True
-            for reservation in reservations:
-                if not reservation.paid:
-                    all_paid = False
-                    break
-            if all_paid:
-                order.paid = True
-                order.save()
+    """
+    Handle PayMongo payment webhooks
+    """
+    try:
+        webhook_data = json.loads(request.body.decode("utf-8"))
+        event_type = webhook_data["data"]["attributes"]["type"]
+        
+        if event_type == "checkout_session.payment.paid":
+            _handle_payment_success(webhook_data["data"]["attributes"])
+            
+    except (KeyError, json.JSONDecodeError) as e:
+        return HttpResponse(status=400)
+    
+    return HttpResponse(status=200)
 
 
-    return HttpResponse(200)
-
-def source_callback(request):
-    print("test")
-
-@login_required(login_url='/login')
-def index(request):
-    if not hasattr(request.user,"profile"):
-        return redirect('login')
-    profile = request.user.profile
-    active_lunch_form = LunchForm.objects.filter(active=True).first()
-    active_snacks_form = SnacksForm.objects.filter(active=True).first()
-
-    if not active_lunch_form:
-        context = {
-            "profile" : profile,
-            "orders": profile.order_set.all(),
-            "submitted": len(profile.order_set.filter(form=active_lunch_form)) != 0
-        }
-        return render(request, "forms/index.html", context)
-
-    if request.method == "POST":
-        total_paid = 0
-
-        form_type = request.POST.getlist("form")[0]
-        if form_type == "lunch_form":
-            order = Order.objects.create(form=active_lunch_form, profile=profile)
-        elif form_type == "snacks_form":
-            order = Order.objects.create(form=active_snacks_form, profile=profile)
-        weekdays = ["monday","tuesday","wednesday","thursday","friday"]
-        food_items_dict = {"1": [], "2": [], "3": [], "4": [], "5": []}
-        for key,value in request.POST.dict().items():
-
-            if "quantity" in key and int(value) != 0:
-                food_item_id, weekday_num, *rest = key.split("-")
-                food_items_dict[weekday_num].append({"food_item_id": food_item_id, "quantity": value})
-
-        for key, value in food_items_dict.items():
-            reservation = Reservation.objects.create(weekday=str(key))
-            for food_item_entry in value:
-                print(food_item_entry)
-                food_item = FoodItem.objects.get(id=food_item_entry["food_item_id"])
-                total_paid += food_item.price * int(food_item_entry["quantity"])
-                selection = Selection.objects.create(reservation=reservation, food_item=food_item, quantity=food_item_entry["quantity"])
-
-                selection.save()
+def _handle_payment_success(payment_data):
+    """
+    Handle successful payment webhook
+    """
+    metadata = payment_data["data"]["attributes"]["metadata"]
+    payment_type = metadata["type"]
+    item_id = metadata["id"]
+    
+    if payment_type == "order":
+        order = get_object_or_404(Order, id=item_id)
+        order.paid = True
+        order.save()
+    elif payment_type == "reservation":
+        reservation = get_object_or_404(Reservation, id=item_id)
+        reservation.paid = True
+        reservation.save()
+        _check_and_update_order_payment_status(reservation)
 
 
-            order.reservations.add(reservation)
-        order.total_paid = total_paid
+def _check_and_update_order_payment_status(reservation):
+    """
+    Check if all reservations in an order are paid and update order status
+    """
+    order = reservation.order
+    all_paid = all(res.paid for res in order.reservations.all())
+    if all_paid:
+        order.paid = True
         order.save()
 
 
-        return redirect('index')
-
-    lunch_options = active_lunch_form.options.all().order_by("weekday")
-
-    snacks_options = active_snacks_form.options.all().order_by("weekday")
-
-    context = {
-        "active_lunch_form": active_lunch_form,
-        "active_snacks_form": active_snacks_form,
-        "lunch_options": lunch_options,
-        "snacks_options": snacks_options,
-        "submitted_lunch": len(profile.order_set.filter(form=active_lunch_form)) != 0,
-        "submitted_snacks": len(profile.order_set.filter(form=active_snacks_form)) != 0,
-        "profile" : profile,
-        "orders": reversed(profile.order_set.all()),
-
-    }
-    if request.user_agent.is_mobile:
-        print("ay")
-        return render(request, "forms/mobile_index.html", context)
-    return render(request, "forms/index.html", context)
-
-@csrf_exempt
-def delete_order(request,id):
+@login_required(login_url='/login')
+def index(request):
+    """
+    Main reservation page - display forms and handle submissions
+    """
+    # Ensure user has profile
+    if not hasattr(request.user, "profile"):
+        return redirect('login')
+    
+    profile = request.user.profile
+    active_lunch_form = LunchForm.objects.filter(active=True).first()
+    active_snacks_form = SnacksForm.objects.filter(active=True).first()
+    
+    # Handle form submission
     if request.method == "POST":
-        order = Order.objects.get(id=id)
-        if order.paid is False:
-            order.delete()
+        return _handle_reservation_submission(request, profile, active_lunch_form, active_snacks_form)
+    
+    # Prepare context for GET request
+    context = _prepare_index_context(profile, active_lunch_form, active_snacks_form)
+    
+    # Choose template based on device
+    template = "forms/mobile_index.html" if request.user_agent.is_mobile else "forms/index.html"
+    return render(request, template, context)
+
+
+def _handle_reservation_submission(request, profile, active_lunch_form, active_snacks_form):
+    """
+    Handle reservation form submission
+    """
+    form_type = request.POST.getlist("form")[0]
+    
+    # Determine which form to use
+    if form_type == "lunch_form" and active_lunch_form:
+        active_form = active_lunch_form
+    elif form_type == "snacks_form" and active_snacks_form:
+        active_form = active_snacks_form
+    else:
+        messages.error(request, "Invalid form submission.")
         return redirect('index')
+    
+    # Create order from form data
+    OrderService.create_order_from_form_data(
+        request.POST.dict(), 
+        active_form, 
+        profile
+    )
+    
+    messages.success(request, "Your reservation has been submitted successfully!")
+    return redirect('index')
+
+
+def _prepare_index_context(profile, active_lunch_form, active_snacks_form):
+    """
+    Prepare context data for index view
+    """
+    context = {
+        "profile": profile,
+        "orders": profile.order_set.all().order_by('-id'),
+    }
+    
+    if active_lunch_form:
+        context.update({
+            "active_lunch_form": active_lunch_form,
+            "lunch_options": active_lunch_form.options.all().order_by("weekday"),
+            "submitted_lunch": profile.order_set.filter(form=active_lunch_form).exists()
+        })
+    
+    if active_snacks_form:
+        context.update({
+            "active_snacks_form": active_snacks_form,
+            "snacks_options": active_snacks_form.options.all().order_by("weekday"),
+            "submitted_snacks": profile.order_set.filter(form=active_snacks_form).exists()
+        })
+    
+    return context
+
 
 @csrf_exempt
-def pay_order(request,id):
-    secret_key = "sk_test_fdM4unQJZYQqQWvQN1xyHMG7".encode("ascii")
+def delete_order(request, id):
+    """
+    Delete an unpaid order
+    """
+    if request.method != "POST":
+        return redirect('index')
+    
+    order = get_object_or_404(Order, id=id)
+    
+    if not order.paid:
+        order.delete()
+        messages.success(request, "Order deleted successfully.")
+    else:
+        messages.error(request, "Cannot delete a paid order.")
+    
+    return redirect('index')
 
-    base64_secret_key = base64.b64encode(secret_key).decode("ascii")
-    headers = {
-        "accept": "application/json",
-        "authorization": "Basic "+base64_secret_key,
-        "content-type": "application/json"
+
+@csrf_exempt
+def pay_order(request, id):
+    """
+    Create payment session for an order
+    """
+    if request.method != "POST":
+        return redirect('index')
+    
+    payment_type = request.POST.get("pay_type")
+    
+    if payment_type == "order":
+        return _handle_order_payment(id)
+    elif payment_type == "reservation":
+        return _handle_reservation_payment(id)
+    else:
+        return HttpResponse("Invalid payment type", status=400)
+
+
+def _handle_order_payment(order_id):
+    """
+    Handle payment for entire order
+    """
+    order = get_object_or_404(Order, id=order_id)
+    
+    metadata = {
+        "type": "order",
+        "id": str(order_id)
     }
-
-    cs_url = "https://api.paymongo.com/v1/checkout_sessions"
-    pay_type = request.POST["pay_type"]
-    if pay_type == "order":
-        order = Order.objects.get(id=id)
-
-        cs_payload = { "data": { "attributes": {
-                    "payment_method_types": ["gcash"],
-                    "line_items": [
-                        {
-                            "amount": order.total_paid*100,
-                            "currency": "PHP",
-                            "name": "Total",
-                            "quantity": 1
-                        },
-                        {
-                            "amount": round((order.total_paid*100)*0.025),
-                            "currency": "PHP",
-                            "name": "Small Service Fee",
-                            "quantity": 1
-                        }
-                    ],
-                    "description": "test",
-                    "send_email_receipt": False,
-                    "show_description": True,
-                    "show_line_items": True,
-                    "success_url": HOST_URL,
-
-                    "metadata": {
-                        "type": "order",
-                        "id": id
-                    }
-                } } }
-    elif pay_type == "reservation":
-        reservation = Reservation.objects.get(id=id)
-        total_paid = 0
-        food_items = reservation.food_items
-        for food in food_items.values():
-            total_paid += food["price"]
-        cs_payload = { "data": { "attributes": {
-                    "payment_method_types": ["gcash"],
-                    "line_items": [
-                        {
-                            "amount": total_paid*100,
-                            "currency": "PHP",
-                            "name": "Total",
-                            "quantity": 1
-                        },
-                        {
-                            "amount": round((total_paid*100)*0.025),
-                            "currency": "PHP",
-                            "name": "Small Service Fee",
-                            "quantity": 1
-                        }
-                    ],
-                    "description": "test",
-                    "send_email_receipt": False,
-                    "show_description": True,
-                    "show_line_items": True,
-                    "success_url": HOST_URL,
-
-                    "metadata": {
-                        "type": "reservation",
-                        "id": id
-                    }
-                } } }
-    cs_response = requests.post(cs_url, json=cs_payload, headers=headers)
-    print(cs_response.json())
-    checkout_url = cs_response.json()["data"]["attributes"]["checkout_url"]
-    # webbrowser.open(checkout_url)
-
+    
+    checkout_session = payment_service.create_checkout_session(
+        order.total_paid, 
+        metadata
+    )
+    
+    checkout_url = checkout_session["data"]["attributes"]["checkout_url"]
     return HttpResponse(checkout_url)
 
 
+def _handle_reservation_payment(reservation_id):
+    """
+    Handle payment for individual reservation
+    """
+    reservation = get_object_or_404(Reservation, id=reservation_id)
+    
+    # Calculate total for this reservation
+    total_amount = sum(
+        selection.food_item.price * selection.quantity 
+        for selection in reservation.selection_set.all()
+    )
+    
+    metadata = {
+        "type": "reservation",
+        "id": str(reservation_id)
+    }
+    
+    checkout_session = payment_service.create_checkout_session(
+        total_amount, 
+        metadata
+    )
+    
+    checkout_url = checkout_session["data"]["attributes"]["checkout_url"]
+    return HttpResponse(checkout_url)
+
+
+# Admin views
 def print_form(request, id):
-    if request.user.is_superuser:
-        weekdays = Option.WEEKDAYS
-        form = Form.objects.get(id=id)
-        orders = Order.objects.filter(form=form)
-
-        display = {
-            "monday": [],
-            "tuesday": [],
-            "wednesday": [],
-            "thursday": [],
-            "friday": []
-        }
-        for order in orders:
-            reservations = order.reservations.all()
-            for reservation in reservations:
-
-                display[weekdays[int(reservation.weekday)-1][1]].append(reservation)
-
-
-        context = {
-            "weekdays": ["monday","tuesday","wednesday","thursday","friday"],
-            "form": form,
-            "orders": orders,
-            "display": display,
-
-        }
-        return render(request, "admin/print_form.html", context)
-    else:
+    """
+    Print form for kitchen preparation (admin only)
+    """
+    if not request.user.is_superuser:
         return redirect('index')
+    
+    form = get_object_or_404(Form, id=id)
+    orders = Order.objects.filter(form=form)
+    display = ReportService.organize_orders_by_weekday(orders)
+    
+    context = {
+        "weekdays": list(WEEKDAYS.values()),
+        "form": form,
+        "orders": orders,
+        "display": display,
+    }
+    return render(request, "admin/print_form.html", context)
+
 
 def check_quantities(request, id):
-    if request.user.is_superuser:
-        weekdays = Option.WEEKDAYS
-        form = Form.objects.get(id=id)
-        orders = Order.objects.filter(form=form)
-
-
-
-        count = {
-            "monday": {},
-            "tuesday": {},
-            "wednesday": {},
-            "thursday": {},
-            "friday": {},
-            "total": {}
-        }
-
-        for option in form.options.all():
-            for food_item in option.food_items.all():
-                count[weekdays[int(option.weekday)-1][1]][food_item.name] = 0
-                if food_item.name not in count["total"]:
-                    count["total"][food_item.name] = 0
-
-        for order in orders:
-            reservations = order.reservations.all()
-            for reservation in reservations:
-                for selection in reservation.selection_set.all():
-                    count[weekdays[int(reservation.weekday)-1][1]][selection.food_item.name] += selection.quantity
-                    count["total"][selection.food_item.name] += selection.quantity
-
-        context = {
-            "count": count,
-        }
-        return render(request, "admin/check_quantities.html", context)
-    else:
+    """
+    Check quantities needed for food preparation (admin only)
+    """
+    if not request.user.is_superuser:
         return redirect('index')
+    
+    form = get_object_or_404(Form, id=id)
+    count = ReportService.generate_quantity_report(form)
+    
+    context = {"count": count}
+    return render(request, "admin/check_quantities.html", context)
+
 
 def check_order(request, id):
-    if request.user.is_superuser:
-        weekdays = Option.WEEKDAYS
-        order = Order.objects.get(id=id)
-
-        display = {
-            "monday": [],
-            "tuesday": [],
-            "wednesday": [],
-            "thursday": [],
-            "friday": []
-        }
-
-        reservations = order.reservations.all()
-        for reservation in reservations:
-            display[weekdays[int(reservation.weekday)-1][1]].append(reservation)
-
-
-        context = {
-            "weekdays": ["monday","tuesday","wednesday","thursday","friday"],
-
-            "display": display,
-
-        }
-        return render(request, "admin/check_order.html", context)
-    else:
+    """
+    Check individual order details (admin only)
+    """
+    if not request.user.is_superuser:
         return redirect('index')
+    
+    order = get_object_or_404(Order, id=id)
+    display = ReportService.organize_orders_by_weekday([order])
+    
+    context = {
+        "weekdays": list(WEEKDAYS.values()),
+        "display": display,
+    }
+    return render(request, "admin/check_order.html", context)
+
+
+def source_callback(request):
+    """
+    Placeholder for future payment source callbacks
+    """
+    return HttpResponse("OK") 

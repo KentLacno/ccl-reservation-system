@@ -16,6 +16,13 @@
     </div>
 
   </div>
+  <div class="d-flex align-items-center p-3">
+    <p style="color: orange; margin: 0"><strong>Coins: </strong>{{profile.coins}}</p>
+    <button type="button" class="btn btn-secondary btn-sm ms-2" style="border-radius: 50%; width: 30px; height: 30px;" data-bs-toggle="tooltip" data-bs-placement="right"
+    title="Earn coins using the reservation system! 50 coins when you first sign up, 20 coins for every 50 pesos spent per reservation. 10 coins = ₱1">
+      ?
+    </button>
+  </div>
   <ul class="nav nav-tabs">
     <li class="nav-item">
       <a class="nav-link active" id="lunch-tab" onclick="selectForm('lunch','snacks')">Lunch Form</a>
@@ -38,6 +45,17 @@
       </div>
       {% endif %}
       <h1 style="font-size: 1.5rem" class="mb-3 mt-3 text-center">Lunch Reservation Form for <br>{{ active_lunch_form.display_week}}</h1>
+      <div class="p-4">
+        <strong>Ordering For:</strong>
+        <div class="mb-3 mt-2 d-flex">
+          <label for="lunch-name" class="me-2 col-form-label">Name: </label>
+          <input type="text" class="form-control" id="lunch-name" name="name" value="{{profile.name}}">
+        </div>
+        <div class="mb-3 mt-2 d-flex">
+          <label for="lunch-grade" class="me-2 col-form-label">Grade: </label>
+          <input type="text" class="form-control" id="lunch-grade" name="grade" value="{{profile.department}}">
+        </div>
+      </div>
 
     </div>
 
@@ -51,13 +69,16 @@
           <h5 class="text-center fw-bold">No Classes For This Day / HOLIDAY</h5>
           {% endif %}
               {% for food in option.food_items.values %}
-                <div class=" d-flex align-items-center" style="border: 1px solid #ddd; border-radius: 10px;">
-                    <img style="width: 90px; height:90px;    border-radius: 8px; object-fit: cover;" class="img-thumbnail me-4" src="{{food.image}}"/>
-                    <div class="d-flex justify-content-between w-100 align-items-center pe-3 " style="font-size: 0.9rem">
-                        <p style="margin:0px"><strong>{{ food.name }}</strong> <br> ₱{{ food.price }}</p>
-
-                        <div id="{{food.id}}-{{option.weekday}}-quantity me-3">
-                          <input data-price="{{food.price}}" step="1" onkeyup="addQuantity('lunch')" class="form-control form-control-sm" type="number" id="{{food.id}}-{{option.weekday}}-quantity" name="{{food.id}}-{{option.weekday}}-quantity" value="0" min="0" max="5">
+                <div class="d-flex align-items-center" style="border: 1px solid #ddd; border-radius: 10px;">
+                    <img style="width: 90px; height:90px; border-radius: 8px; object-fit: cover;" class="img-thumbnail me-4" src="{{food.image}}"/>
+                    <div class="d-flex justify-content-between w-100 align-items-center pe-3" style="font-size: 0.9rem">
+                        <div>
+                            <p style="margin:0"><strong>{{ food.name }}</strong> <br> ₱{{ food.price }}</p>
+                        </div>
+                        <div id="{{food.id}}-{{option.weekday}}-quantity" class="d-flex align-items-center">
+                            <button type="button" class="btn btn-outline-secondary" style="padding: 0px 6px; min-width: 24px; height: 24px; font-size: 12px; line-height: 1;" onclick="decrementQuantity('{{food.id}}-{{option.weekday}}-quantity', 'lunch')">-</button>
+                            <input data-price="{{food.price}}" style="width: 32px; padding: 0 2px; height: 24px; font-size: 12px; margin: 0 2px;" step="1" onchange="addQuantity('lunch')" class="form-control text-center" type="number" id="{{food.id}}-{{option.weekday}}-quantity-input" name="{{food.id}}-{{option.weekday}}-quantity" value="0" min="0" max="5">
+                            <button type="button" class="btn btn-outline-secondary" style="padding: 0px 6px; min-width: 24px; height: 24px; font-size: 12px; line-height: 1;" onclick="incrementQuantity('{{food.id}}-{{option.weekday}}-quantity', 'lunch')">+</button>
                         </div>
                     </div>
                 </div>
@@ -94,6 +115,17 @@
       </div>
       {% endif %}
       <h1 style="font-size: 1.5rem" class="mb-3 mt-3 text-center">Snacks Reservation Form for <br>{{ active_snacks_form.display_week}}</h1>
+      <div class="p-4">
+        <strong>Ordering For:</strong>
+        <div class="mb-3 mt-2 d-flex">
+          <label for="snacks-name" class="me-2 col-form-label">Name: </label>
+          <input type="text" class="form-control" id="snacks-name" name="name" value="{{profile.name}}">
+        </div>
+        <div class="mb-3 mt-2 d-flex">
+          <label for="snacks-grade" class="me-2 col-form-label">Grade: </label>
+          <input type="text" class="form-control" id="snacks-grade" name="grade" value="{{profile.department}}">
+        </div>
+      </div>
 
     </div>
 
@@ -107,13 +139,16 @@
           <h5 class="text-center fw-bold">No Classes For This Day / HOLIDAY</h5>
           {% endif %}
               {% for food in option.food_items.values %}
-                <div class=" d-flex align-items-center" style="border: 1px solid #ddd; border-radius: 10px;">
-                    <img style="width: 90px; height:90px;    border-radius: 8px; object-fit: cover;" class="img-thumbnail me-4" src="{{food.image}}"/>
-                    <div class="d-flex justify-content-between w-100 align-items-center pe-3 " style="font-size: 0.9rem">
-                        <p style="margin:0"><strong>{{ food.name }}</strong> <br> ₱{{ food.price }}</p>
-
-                        <div id="{{food.id}}-{{option.weekday}}-quantity me-3">
-                          <input data-price="{{food.price}}" step="1" onkeyup="addQuantity('snacks')" class="form-control form-control-sm" type="number" id="{{food.id}}-{{option.weekday}}-quantity" name="{{food.id}}-{{option.weekday}}-quantity" value="0" min="0" max="5">
+                <div class="d-flex align-items-center" style="border: 1px solid #ddd; border-radius: 10px;">
+                    <img style="width: 90px; height:90px; border-radius: 8px; object-fit: cover;" class="img-thumbnail me-4" src="{{food.image}}"/>
+                    <div class="d-flex justify-content-between w-100 align-items-center pe-3" style="font-size: 0.9rem">
+                        <div>
+                            <p style="margin:0"><strong>{{ food.name }}</strong> <br> ₱{{ food.price }}</p>
+                        </div>
+                        <div id="{{food.id}}-{{option.weekday}}-quantity" class="d-flex align-items-center">
+                            <button type="button" class="btn btn-outline-secondary" style="padding: 0px 6px; min-width: 24px; height: 24px; font-size: 12px; line-height: 1;" onclick="decrementQuantity('{{food.id}}-{{option.weekday}}-quantity', 'snacks')">-</button>
+                            <input data-price="{{food.price}}" style="width: 32px; padding: 0 2px; height: 24px; font-size: 12px; margin: 0 2px;" step="1" onchange="addQuantity('snacks')" class="form-control text-center" type="number" id="{{food.id}}-{{option.weekday}}-quantity-input" name="{{food.id}}-{{option.weekday}}-quantity" value="0" min="0" max="5">
+                            <button type="button" class="btn btn-outline-secondary" style="padding: 0px 6px; min-width: 24px; height: 24px; font-size: 12px; line-height: 1;" onclick="incrementQuantity('{{food.id}}-{{option.weekday}}-quantity', 'snacks')">+</button>
                         </div>
                     </div>
                 </div>
@@ -264,19 +299,32 @@
   </div>
 </div>
 <script type="text/javascript">
+  function incrementQuantity(id, form) {
+    var input = document.getElementById(id + "-input");
+    if (input.value < 5) {
+        input.value = parseInt(input.value) + 1;
+        addQuantity(form);
+    }
+  }
+
+  function decrementQuantity(id, form) {
+    var input = document.getElementById(id + "-input");
+    if (input.value > 0) {
+        input.value = parseInt(input.value) - 1;
+        addQuantity(form);
+    }
+  }
+
   function addQuantity(form) {
     console.log(form)
     var total = document.getElementById(form+"-total");
     var partialTotal = 0
     var quantities = document.querySelectorAll("input[type='number']")
     quantities.forEach((quantity) => {
-
-          partialTotal += quantity.value * quantity.getAttribute("data-price")
+        partialTotal += quantity.value * quantity.getAttribute("data-price")
     })
     total.innerText = partialTotal
-
   }
-
 
   function selectForm(form, otherForm) {
     document.getElementById(form+"-form").classList.remove("d-none")
